@@ -1,0 +1,43 @@
+@startuml
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+skinparam sequenceParticipant underline
+
+actor user
+user-> Bootstrap:main()
+autonumber 1.0
+ activate Bootstrap
+ Bootstrap->Bootstrap:init()
+
+            note over Bootstrap: init()
+            Bootstrap -> Catalina:newInstance()
+
+ autonumber 2.0
+ Bootstrap->Bootstrap:load()
+
+            note over Bootstrap: load()
+            Bootstrap -> Catalina:load()反射
+            deactivate Bootstrap
+                autonumber stop
+                activate Catalina
+                note over Catalina:load()
+                Catalina o->Catalina:createStartDigester()
+                        activate Catalina#red
+                        Catalina ->Digester:new Digester()
+                        deactivate Catalina#red
+                        Catalina o->Digester:parse() config/server.xml
+
+                        activate Digester
+                            Digester->StandardServer:newInstance()
+                            StandardServer-->StandardServer:set port/shutdown porperty
+                            Catalina<-StandardServer:setServer()
+                        deactivate Digester
+
+                        Catalina->Catalina:
+                deactivate Catalina
+
+
+
+
+@enduml
