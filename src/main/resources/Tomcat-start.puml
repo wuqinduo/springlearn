@@ -1,43 +1,25 @@
 @startuml
-skinparam sequenceArrowThickness 2
-skinparam roundcorner 20
-skinparam maxmessagesize 60
-skinparam sequenceParticipant underline
+==start()阶段==
 
-actor user
-user-> Bootstrap:main()
-autonumber 1.0
- activate Bootstrap
- Bootstrap->Bootstrap:init()
+activate Bootstrap
+Bootstrap->Bootstrap:start()
+note over Bootstrap: start()
+Bootstrap -> Catalina:start()反射
+Catalina-> StandardServer:start()
+StandardServer->StandardService:start()
+       StandardService->StandardEngine:start()
+            StandardEngine->StandardHost:start()
+                StandardHost->StandardContext:start()
+                        StandardContext->listener:listenerStart()
+                        StandardContext->filter:filterStart()
+                        StandardContext->Wapper:loadOnStartup(Container[] children)(Servlet)
 
-            note over Bootstrap: init()
-            Bootstrap -> Catalina:newInstance()
+                StandardHost->StandardPipeline:Host.StandardPipeline.start()
+                        StandardPipeline->value:Host.StandardPipeline.start()
+            StandardEngine->StandardPipeline:Engine.StandardPipeline.start()
+                StandardPipeline->value:Engine.StandardPipeline.start()
+       StandardService->StandardThreadExecutor:start()
+       StandardService->Connector:start()
 
- autonumber 2.0
- Bootstrap->Bootstrap:load()
-
-            note over Bootstrap: load()
-            Bootstrap -> Catalina:load()反射
-            deactivate Bootstrap
-                autonumber stop
-                activate Catalina
-                note over Catalina:load()
-                Catalina o->Catalina:createStartDigester()
-                        activate Catalina#red
-                        Catalina ->Digester:new Digester()
-                        deactivate Catalina#red
-                        Catalina o->Digester:parse() config/server.xml
-
-                        activate Digester
-                            Digester->StandardServer:newInstance()
-                            StandardServer-->StandardServer:set port/shutdown porperty
-                            Catalina<-StandardServer:setServer()
-                        deactivate Digester
-
-                        Catalina->Catalina:
-                deactivate Catalina
-
-
-
-
+autonumber stop
 @enduml

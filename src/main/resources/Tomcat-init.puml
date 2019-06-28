@@ -1,0 +1,88 @@
+@startuml
+skinparam sequenceArrowThickness 2
+skinparam roundcorner 20
+skinparam maxmessagesize 60
+skinparam sequenceParticipant underline
+
+actor user
+user-> Bootstrap:main()
+autonumber 1.0
+activate Bootstrap
+Bootstrap->Bootstrap:init()
+note over Bootstrap: init()
+Bootstrap -> Catalina:newInstance()
+
+autonumber 2.0
+Bootstrap->Bootstrap:load()
+note over Bootstrap: load()
+Bootstrap -> Catalina:load()反射
+autonumber stop
+==实例化阶段==
+    activate Catalina
+    note over Catalina:load()
+    Catalina o->Catalina:createStartDigester()
+
+        activate Catalina#red
+        Catalina ->Digester:new Digester()
+        deactivate Catalina#red
+        Catalina o->Digester:parse() config/server.xml
+            autonumber 4.0
+            activate Digester
+            alt Server服务器
+            Digester->StandardServer:newInstance()
+                StandardServer->StandardServer:set port and property
+            Digester--> 通用组件:if(xml配置NamingResourcesImpl LifecycleListener)---newInstance()并设置到Server
+                alt Service服务N
+                Digester->StandardService:newInstance()
+                StandardService->StandardService: setProperty
+                StandardServer->StandardService:addService();
+                StandardService->StandardServer:service.setServer(this);
+                Digester--> 通用组件:if(xml配置LifecycleListener)--newInstance()并设置到service
+                Digester->StandardThreadExecutor:f(xml没有配置Executor)--newInstance()并设置到service
+                StandardThreadExecutor->StandardThreadExecutor: setProperty
+                StandardService->StandardThreadExecutor:addExecutor()
+                    alt Connector组件N
+                    Digester->Connector:newInstance()
+                        Connector->Http11NioProtocol:newInstance()
+                        Http11NioProtocol->NioEndpoint:new NioEndpoint()
+                        Connector->Connector:set port and 协议
+                        Connector->o StandardService:addConnector()
+                    Digester--> 通用组件:if(xml配置Connector) newInstance()并设置到service
+                    end
+                    alt Container组件
+                    Digester->StandardEngine:newInstance()
+                        StandardEngine->Engine.StandardPipeline:new StandardPipeline(this);
+                        Engine.StandardPipeline->StandardEngine:setContainer(this=Engine engine)
+                        Engine.StandardPipeline->StandardEngineValve:setBasic(new StandardEngineValve())
+                        StandardEngine<-StandardEngine:setProperty
+                        StandardService o<-StandardEngine:setContainer(Engine engine)
+                    Digester->StandardHost:newInstance()
+                        StandardHost->Host.StandardPipeline:new StandardPipeline(this);
+                        Host.StandardPipeline->StandardHost:setContainer(this=Host host)
+                        Host.StandardPipeline->StandardHostValve:setBasic(new StandardHostValve())
+                        StandardEngine o<-StandardHost:addChild(Container child)
+                        StandardHost ->StandardEngine:setParent(this)
+                    Digester->StandardContext:newInstance()
+                    end
+                end
+            end
+            deactivate Digester
+    Catalina->StandardServer:setCatalina(StandardServer this)
+==init()阶段==
+    Catalina->StandardServer:getServer().init()
+    StandardServer->StandardServer:initInternal()
+    StandardServer->StandardService:int()
+    StandardService->StandardService:initInternal()
+    StandardService->StandardEngine:init()
+    StandardService->StandardThreadExecutor:init()
+    StandardService->Connector:init()
+        Connector->Connector:new CoyoteAdapter(this)
+        Connector->Http11NioProtocol:协议init()
+        Http11NioProtocol->NioEndpoint:端点init()
+        NioEndpoint->NioEndpoint:bind()
+        NioEndpoint->NioEndpoint:配置serverSock
+        NioEndpoint->NioSelectorPool:open()
+    deactivate Catalina
+
+==start()阶段==
+@enduml

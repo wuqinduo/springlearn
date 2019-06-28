@@ -1,0 +1,16 @@
+@startuml
+
+scale 500*500
+start
+:"分享工具：plantuml";
+if (你需要吗?) then (需要)
+    :"花1个小时";
+    :"有帮助";
+   
+else (不需要)
+    :"有xxx就够了";
+   
+endif
+
+caption figure 1.2 test
+@enduml
