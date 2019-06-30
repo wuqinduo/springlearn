@@ -5,9 +5,11 @@ activate Bootstrap
 Bootstrap->Bootstrap:start()
 note over Bootstrap: start()
 Bootstrap -> Catalina:start()反射
+activate Catalina
 Catalina-> StandardServer:start()
 StandardServer->StandardService:start()
-       StandardService->StandardEngine:start()
+       ==Engine启动==
+       StandardService o->StandardEngine:start()
             StandardEngine->StandardHost:start()
                 StandardHost->StandardContext:start()
                         StandardContext->listener:listenerStart()
@@ -18,8 +20,19 @@ StandardServer->StandardService:start()
                         StandardPipeline->value:Host.StandardPipeline.start()
             StandardEngine->StandardPipeline:Engine.StandardPipeline.start()
                 StandardPipeline->value:Engine.StandardPipeline.start()
-       StandardService->StandardThreadExecutor:start()
-       StandardService->Connector:start()
+       StandardService o->StandardThreadExecutor:start()
+       ==Connector启动==
+       StandardService o->Connector:start()
+            Connector->Http11NioProtocol:protocolHandler.start()协议实现启动
+                Http11NioProtocol->NioEndpoint:start()
+                    NioEndpoint->NioEndpoint.Ploller:start()
+                    NioEndpoint->NioEndpoint.Acceptor:start()
+Catalina-> StandardServer:await()
+       StandardServer->StandardServer:listen to 8005 for shutdown command
+Catalina<--StandardServer: recived Shutdown command
+Catalina->Catalina:stop()
+Catalina->StandardServer:stop()
+
 
 autonumber stop
 @enduml

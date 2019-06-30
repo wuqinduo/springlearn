@@ -1,0 +1,33 @@
+@startuml
+==Acceptor阶段==
+Acceptor->NioEndpoint:this.serverSock.accept()阻塞
+->Acceptor:有socket链接
+Acceptor->NioEndpoint:this.setSocketOptions(socket)
+NioEndpoint->NioChannel:new NioChannel(socket, bufhandler);
+NioEndpoint->Poller:getPoller0()
+Poller->Poller:register((NioChannel)channel);
+Poller->NioEndpoint.NioSocketWrapper: ka= new NioEndpoint.NioSocketWrapper(socket, NioEndpoint.this);
+Poller->PollerEvent:e = new NioEndpoint.PollerEvent(channel, ka, 256);
+Poller->Poller:this.addEvent(PollerEvent)
+Poller->events队列:events.offer(event)
+==Poller阶段==
+loop 循环run()
+activate Poller
+Poller->Poller:event();
+Poller->Poller:selector.select(1000L)阻塞
+events队列->Poller:有PollerEvent
+Poller-[#00FF00]>PollerEvent
+PollerEvent-[#00FF00]>PollerEvent:run()
+PollerEvent-[#00FF00]>SocketChannel:this.socket.getIOChannel().register(Poller.selector,1,ScoketWapper)
+SocketChannel-[#00FF00]>SelectorImpl:register
+SelectorImpl--[#00FF00]>SocketChannel:addKey(k)
+... socket ready to read ...
+Poller->Poller:取消对此时间关注
+Poller->NioEndpoint:processKey(key,socketWapper)
+NioEndpoint->NioEndpoint:processSocket(attachment, SocketEvent.OPEN_READ)
+NioEndpoint->NioEndpoint:createSocketProcessor(socketWrapper, event)
+NioEndpoint->NioEndpoint:NioEndpoint.SocketProcessor(socketWrapper, event)
+NioEndpoint->ThreadExecutor:this.getExecutor().execute(sc)
+==worker阶段==
+end
+@enduml
