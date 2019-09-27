@@ -45,6 +45,7 @@ autonumber stop
                     Digester->Connector:newInstance()
                         Connector->Http11NioProtocol:newInstance()
                         Http11NioProtocol->NioEndpoint:new NioEndpoint()
+                        Http11NioProtocol<-NioEndpoint:setHandler(new ConnectionHandler(this))
                         Connector->Connector:set port and 协议
                         Connector->o StandardService:addConnector()
                     Digester--> 通用组件:if(xml配置Connector) newInstance()并设置到service

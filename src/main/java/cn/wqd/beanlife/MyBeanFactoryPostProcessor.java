@@ -1,4 +1,4 @@
-package cn.wqd.base;
+package cn.wqd.beanlife;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.MutablePropertyValues;
@@ -13,6 +13,7 @@ public class MyBeanFactoryPostProcessor implements BeanFactoryPostProcessor {
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory configurableListableBeanFactory) throws BeansException {
         System.out.println("第一步：调用MyBeanFactoryPostProcessor的postProcessBeanFactory");
+        System.out.println("调用此方法："+Thread.currentThread().getStackTrace()[2]);
         BeanDefinition definition = configurableListableBeanFactory.getBeanDefinition("beanUser");
         MutablePropertyValues propertyValues = definition.getPropertyValues();
         if(propertyValues.contains("name")){

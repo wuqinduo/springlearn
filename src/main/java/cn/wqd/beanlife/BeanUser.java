@@ -1,10 +1,13 @@
-package cn.wqd.base;
+package cn.wqd.beanlife;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 
 /**
  * bean生命周期:
@@ -12,6 +15,8 @@ import org.springframework.context.ApplicationContextAware;
  * https://www.cnblogs.com/april-chen/p/8182631.html
  * https://blog.csdn.net/geekjoker/article/details/79868945
  */
+@Component
+@Lazy(value = true)
 public class BeanUser implements InitializingBean, ApplicationContextAware, DisposableBean {
 
     private String name;
@@ -40,18 +45,18 @@ public class BeanUser implements InitializingBean, ApplicationContextAware, Disp
         this.address = address;
     }
 
-    @Override
-    public void afterPropertiesSet() throws Exception {
-        System.out.println("第七步：调用afterPropertiesSet方法");
-    }
-
     public void  initMethod(){
-        System.out.println("第八步：调用initMethod方法");
+        System.out.println("第八步：指定了initMethod===》调用initMethod方法");
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         System.out.println("第五步：处理各种aware，此处处理的是ApplicationContextAware");
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        System.out.println("第七步：实现InitializingBean接口===》调用afterPropertiesSet方法");
     }
 
     public void destroyMethod(){

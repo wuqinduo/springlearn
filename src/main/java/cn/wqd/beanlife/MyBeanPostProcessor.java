@@ -1,4 +1,4 @@
-package cn.wqd.base;
+package cn.wqd.beanlife;
 
 import com.sun.istack.internal.Nullable;
 import org.springframework.beans.BeansException;
