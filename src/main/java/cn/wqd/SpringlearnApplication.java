@@ -25,13 +25,14 @@ public class SpringlearnApplication {
 
 	public static void main(String[] args) {
 		//输出JDK动态代理产生的类
-		System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles","true");
+		/*System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles","true");
 		//输出CGLIB动态代理产生的类
+		System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./cglbproxy");*/
 
-		System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./jdkproxy");
 		ApplicationContext context = SpringApplication.run(SpringlearnApplication.class, args);
 		//CGLIB代理
 		AopController aopController = (AopController)context.getBean("aopController");
+		System.out.println(aopController.getClass().getName());
 		aopController.sayHello("aop");
 		//jdk代理
 		AopControllerInterface aopControllerIml = (AopControllerInterface)context.getBean("aopControllerIml");
