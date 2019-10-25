@@ -30,7 +30,7 @@ public class SpringlearnApplication {
 		//输出JDK动态代理产生的类
 		//System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles","true");
 		//输出CGLIB动态代理产生的类
-		/*System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./cglbproxy");*/
+		//System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./cglbproxy");
 
 		ApplicationContext context = SpringApplication.run(SpringlearnApplication.class, args);
 		/*//CGLIB代理
@@ -44,7 +44,9 @@ public class SpringlearnApplication {
 
 		//事务
 		TransactionalService transactionalService = (TransactionalService)context.getBean("transactionalService");
-		transactionalService.save();
+		transactionalService.save();//只调用事务方法
+		//transactionalService.noTransactionalSave();//非事务方法调用事务帆帆
+		//transactionalService.save2();//事务方法调用事务方法
 
 //		BeanUser beanUser = (BeanUser) context.getBean("beanUser");
 //		System.out.println("开始使用beanuser================");
