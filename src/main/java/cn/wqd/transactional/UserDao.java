@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  */
 
 @Mapper
-@Repository
+//@Repository
 public interface UserDao {
 
     @Insert("insert into user( name, age) " +

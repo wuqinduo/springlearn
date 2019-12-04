@@ -1,14 +1,21 @@
 package cn.wqd.transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.DebuggingClassWriter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import javax.sql.DataSource;
+import java.util.Map;
 
 
 @Service
 public class TransactionalService {
+    @Autowired
+    DataSource dataSource;
 
     @Autowired
     UserDao userDao;
@@ -17,7 +24,14 @@ public class TransactionalService {
     public String save(){
         System.out.println("被事务方法");
         User user = new User("被事务方法",1);
+        //输出JDK动态代理产生的类
+        System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles","true");
+        //输出CGLIB动态代理产生的类
+        System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./tran");
+        Map<Object, Object> map = TransactionSynchronizationManager.getResourceMap();
+        System.out.println(userDao.getClass().getName());//
         userDao.save(user);
+
         return "save";
     }
 
