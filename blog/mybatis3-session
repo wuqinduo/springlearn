@@ -1,0 +1,153 @@
+
+### session的获取
+
+DefaultSqlSessionFactory.openSession()
+```java
+private SqlSession openSessionFromDataSource(ExecutorType execType, TransactionIsolationLevel level, boolean autoCommit) {
+    Transaction tx = null;
+    try {
+       //获取环境变量
+      final Environment environment = configuration.getEnvironment();
+      //获取事务工厂
+      final TransactionFactory transactionFactory = getTransactionFactoryFromEnvironment(environment);
+      //创建一个事务出来
+      tx = transactionFactory.newTransaction(environment.getDataSource(), level, autoCommit);
+      //创建一个执行器
+      final Executor executor = configuration.newExecutor(tx, execType);
+      //创建一个session
+      return new DefaultSqlSession(configuration, executor, autoCommit);
+    } catch (Exception e) {
+      closeTransaction(tx); // may have fetched a connection so lets call close()
+      throw ExceptionFactory.wrapException("Error opening session.  Cause: " + e, e);
+    } finally {
+      ErrorContext.instance().reset();
+    }
+  }
+```
+事务工厂：
+事务工厂分为两种：
+
+* 托管事务工厂，用于创建托管事务，如果没有配置事务工厂。默认创建托管事务
+* JDBC事务工厂，当我单独使用mybatis 时，通常设置为JDBC事务
+
+事务：
+
+* 托管事务：
+* JDBC事务：
+
+看三个参数：
+
+* 数据源（获取Connection）
+* 事务级别（数据的事务级别）
+* 是否自动提交。
+
+执行器：
+
+然后就是事务与 执行类型创建一个执行器。
+
+```java
+public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    //根据执行类型创建一个执行器
+    if (ExecutorType.BATCH == executorType) {
+      executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+      executor = new ReuseExecutor(this, transaction);
+    } else {
+      executor = new SimpleExecutor(this, transaction);
+    }
+    //如果开启了二级缓存，则用缓存执行器对执行器进行包装。
+    if (cacheEnabled) {
+      executor = new CachingExecutor(executor);
+    }
+    //更具执行器，设置插件链
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+  }
+```
+
+执行器的创建：
+BatchExecutor 与 ReuseExecutor，SimpleExecutor 都会引发父类BaseExecutor的初始化
+
+BaseExecutor的构造方法
+```java
+ protected BaseExecutor(Configuration configuration, Transaction transaction) {
+    this.transaction = transaction;
+    this.deferredLoads = new ConcurrentLinkedQueue<DeferredLoad>();
+    this.localCache = new PerpetualCache("LocalCache");
+    this.localOutputParameterCache = new PerpetualCache("LocalOutputParameterCache");
+    this.closed = false;
+    this.configuration = configuration;
+    this.wrapper = this;
+  }
+```
+这里有重要的点：localCache 一级缓存
+
+
+二级缓存：
+二级缓存是通过来cacheEnabled开启的, 开启后，创建一个包装类CachingExecutor 对普通执行器进行包装
+
+```java
+public class CachingExecutor implements Executor {
+
+  private Executor delegate;
+  private TransactionalCacheManager tcm = new TransactionalCacheManager();
+
+  public CachingExecutor(Executor delegate) {
+    this.delegate = delegate;
+    delegate.setExecutorWrapper(this);
+  } 
+}
+```
+构造函数初始化对普通执行器进行包装
+
+TransactionalCacheManager ： 事务缓存。
+
+
+
+插件：
+我们常用的分页插件，就是在此时与某个具体的执行器关联起来的。
+
+
+
+最后根据执行器，configration,自动提交设置， 创建一个默认的DefaultSqlSession出来。
+
+### session 执行
+
+以selectOne(statement,param)为例，看看如何执行
+
+在DefaultSqlsession中最终会调用
+```java
+@Override
+  public <E> List<E> selectList(String statement, Object parameter, RowBounds rowBounds) {
+    try {
+      MappedStatement ms = configuration.getMappedStatement(statement);
+      return executor.query(ms, wrapCollection(parameter), rowBounds, Executor.NO_RESULT_HANDLER);
+    } catch (Exception e) {
+      throw ExceptionFactory.wrapException("Error querying database.  Cause: " + e, e);
+    } finally {
+      ErrorContext.instance().reset();
+    }
+  }
+```
+
+首先通过username.id 从 SQL缓存中，取出对应的SQL映射类。MappedStatement
+
+调用CachingExector的query方法
+```java
+@Override
+  public <E> List<E> query(MappedStatement ms, Object parameterObject, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+    BoundSql boundSql = ms.getBoundSql(parameterObject);
+    CacheKey key = createCacheKey(ms, parameterObject, rowBounds, boundSql);
+    return query(ms, parameterObject, rowBounds, resultHandler, key, boundSql);
+  }
+```
+
+从JDBC 来看
+
+Sql对应的 MappedStatement
+
+statement 对应 StatementHandler
+

@@ -1,0 +1,16 @@
+Connection, transaction , sqlsession
+
+
+Connection是可以重复用的。 只要我们commit 
+
+
+Connection commit与commit之间的范围叫做 事务。
+
+sql 通过事务确定范围，通过connection 进行数据库的操作。
+
+
+
+
+分离思想是程序内一个细分的思想。
+
+事务的实现的基础是，connection 执行操作有 提交动作的分离。

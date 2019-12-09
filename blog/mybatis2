@@ -1,0 +1,12 @@
+
+SQL信息的定位：
+   * Configuration.mappedStatements ： K(namespace.id)   --- V(MappedStatement)
+   * Configuration.mapperRegistry.knownMappers : K(mapper接口.class) --- V(MapperProxyFactory 代理工厂)
+
+
+* mapper.select-->$Proxy0代理类.select-->(增强器InvocationHandler)MapperProxy-->MapperMethod.execute()--(resolveMappedStatement从mappedStatements缓存中选择对应的MappedStatement)-->sqlSession.selectOne(statement, param)
+
+* sqlSession.selectOne(statement, param)
+
+一个SQL 对应一个 MappedStatement。MappedStatement 包含SQL的相关信息。
+
