@@ -8,5 +8,5 @@ SQL信息的定位：
 
 * sqlSession.selectOne(statement, param)
 
-一个SQL 对应一个 MappedStatement。MappedStatement 包含SQL的相关信息。
+一个SQL对应一个 MappedStatement。MappedStatement 包含SQL的相关信息。
 

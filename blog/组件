@@ -1,0 +1,17 @@
+在JDBC中的Statement的
+
+Statement：
+Statement 具有参数处理额的能力。
+
+
+
+
+StatementHandler ：
+ResultSetHandler
+ResultHandler
+参数化
+
+
+写作要有全局观：
+
+前几篇写组件。 后篇串联起来。
