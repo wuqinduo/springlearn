@@ -1,0 +1,146 @@
+mybatis 默认设计了两层缓存，来提高查询效率。
+
+* 一级缓存默认开启 sqlsession 级别，也叫本地缓存
+* 二级缓存需要手动配置，namespace级别， 并且二级缓存可以自定义。
+
+### 一级缓存
+
+#### 创建时机
+一级缓存创建是在创建DefaultSqlSession时，创建BaseExecutor时创建的。默认创建一PerpetualCache缓存类。由此也可以看出一级缓存的缓存范围是session级别
+```java
+public abstract class BaseExecutor implements Executor {
+      protected PerpetualCache localCache; 
+      
+      protected BaseExecutor(Configuration configuration, Transaction transaction){
+          this.localCache = new PerpetualCache("LocalCache");
+      }
+}
+// 可以看出所谓一级缓存就是一个封装了Map的Cahce类
+public class PerpetualCache implements Cache {
+
+  private String id;
+
+  private Map<Object, Object> cache = new HashMap<Object, Object>();
+}
+```
+
+一个session一个 一级PerpetualCache缓存。
+#### 缓存的命中
+不同于以String 字符串作为key， 一级缓存使用CacheKey类实例来做为缓存的KEY值。也就说是否命中缓存关键看CacheKey类实例是否相等。
+
+这就要看Cachekey的equals方法了。
+
+
+```java
+public class CacheKey implements Cloneable, Serializable {
+ //key值的更新
+ public void update(Object object) {
+    int baseHashCode = object == null ? 1 : ArrayUtil.hashCode(object); 
+
+    count++;
+    checksum += baseHashCode;
+    baseHashCode *= count;
+
+    hashcode = multiplier * hashcode + baseHashCode;
+
+    updateList.add(object);
+  }
+  //key值的相等判断
+public boolean equals(Object object) {
+    if (this == object) {//this 这肯定是同一个key
+      return true;
+    }
+    if (!(object instanceof CacheKey)) {
+      return false;
+    }
+
+    final CacheKey cacheKey = (CacheKey) object;//细节，设置为final
+
+    if (hashcode != cacheKey.hashcode) {//检查hashcode值
+      return false;
+    }
+    if (checksum != cacheKey.checksum) {//检查 校验值
+      return false;
+    }
+    if (count != cacheKey.count) {//检查update 次数。
+      return false;
+    }
+
+    for (int i = 0; i < updateList.size(); i++) {// 校验所有的update是否相等。
+      Object thisObject = updateList.get(i);
+      Object thatObject = cacheKey.updateList.get(i);
+      if (!ArrayUtil.equals(thisObject, thatObject)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  }
+```
+我们来看看创建key的地方
+```java
+public abstract class BaseExecutor implements Executor {
+    @Override
+      public CacheKey createCacheKey(MappedStatement ms, Object parameterObject, RowBounds rowBounds, BoundSql boundSql) {
+        if (closed) {
+          throw new ExecutorException("Executor was closed.");
+        }
+        CacheKey cacheKey = new CacheKey();
+        cacheKey.update(ms.getId());// 方法id
+        cacheKey.update(rowBounds.getOffset());// 逻辑分页偏移量
+        cacheKey.update(rowBounds.getLimit());//逻辑分页起始值
+        cacheKey.update(boundSql.getSql());/// SQL语句
+        List<ParameterMapping> parameterMappings = boundSql.getParameterMappings();
+        TypeHandlerRegistry typeHandlerRegistry = ms.getConfiguration().getTypeHandlerRegistry();
+        // mimic DefaultParameterHandler logic
+        for (ParameterMapping parameterMapping : parameterMappings) {
+          if (parameterMapping.getMode() != ParameterMode.OUT) {
+            Object value;
+            String propertyName = parameterMapping.getProperty();
+            if (boundSql.hasAdditionalParameter(propertyName)) {
+              value = boundSql.getAdditionalParameter(propertyName);
+            } else if (parameterObject == null) {
+              value = null;
+            } else if (typeHandlerRegistry.hasTypeHandler(parameterObject.getClass())) {
+              value = parameterObject;
+            } else {
+              MetaObject metaObject = configuration.newMetaObject(parameterObject);
+              value = metaObject.getValue(propertyName);
+            }
+            cacheKey.update(value);//参数
+          }
+        }
+        if (configuration.getEnvironment() != null) {
+          // issue #176
+          cacheKey.update(configuration.getEnvironment().getId());//环境id
+        }
+        return cacheKey;
+      }
+}
+```
+cache的组成包括：方法id+逻辑分页偏移量+逻辑分页起始值+SQL+其他参数值+环境id。
+
+
+#### 缓存Key刷新时机
+
+### 二级缓存
+
+#### 创建时机
+
+二级的缓存是通过CachingExecutor 的TransactionalCacheManager 属性来管理Cache。
+在从DefaultSqlSessionFactory 工厂中创建session时，会调用Configuration#newExecutor 方法创建Exector时，会更具是否开启了二级缓存。用CachingExecutor来包装普通Executor
+```java
+public class CachingExecutor implements Executor {
+
+  private Executor delegate;
+  
+  //二级缓存
+  private TransactionalCacheManager tcm = new TransactionalCacheManager();
+
+  public CachingExecutor(Executor delegate) {
+    this.delegate = delegate;
+    delegate.setExecutorWrapper(this);
+  }
+ }
+```
+

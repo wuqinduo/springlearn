@@ -1,0 +1,21 @@
+
+初始化
+
+Mapper原理
+
+一级缓存原理
+
+二级缓存原理
+
+事务原理
+
+spring与mybatis事务如何联动。
+
+
+
+不用关闭session的有：
+SqlsessionManager:
+
+
+session 是用来干嘛的？
+我认为其是管理事务的。
