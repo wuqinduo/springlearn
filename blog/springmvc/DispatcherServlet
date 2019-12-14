@@ -1,0 +1,38 @@
+作为知识闭环的
+
+从Tomcat 到 SpringMVC
+
+
+
+#### 回顾
+
+
+Pipeline 与 valve 
+在Tomcat一节中讲过，
+
+请求来到最后一个StandardWrapperValve#invoke方法， 根据filter与servlet创建一个ApplicationFilterChain链。执行所有的Filter的doFilter方法。
+在执行所有的filter后。就开始了Servlet的调用。
+
+
+
+
+
+#### DispatcherServlet
+
+背后的思想其实是，中心化思想。带来的好处就是可以做到统一管理，
+
+中心化的一个问题就是决策，而DispatcherServlet 扮演的就是一个决策者。
+#### 流程
+
+
+请求怎么到达
+
+反映到代码中就是
+
+
+doDispatch 其实就是在做一个路由工作。
+
+
+
+
+

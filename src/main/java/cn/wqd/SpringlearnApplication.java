@@ -44,10 +44,10 @@ public class SpringlearnApplication {
 		aopControllerIml.sayHello("JDK说aop");*/
 
 		//事务
-		TransactionalService transactionalService = (TransactionalService)context.getBean("transactionalService");
+		/*TransactionalService transactionalService = (TransactionalService)context.getBean("transactionalService");
 		UserDao userDao = (UserDao) context.getBean("userDao");
 		System.out.println(userDao.getClass().getName());//
-		transactionalService.save();//只调用事务方法
+		transactionalService.save();//只调用事务方法*/
 		//transactionalService.noTransactionalSave();//非事务方法调用事务帆帆
 		//transactionalService.save2();//事务方法调用事务方法
 

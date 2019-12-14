@@ -1,0 +1,73 @@
+参数的解析。在URL的其实是在Tomcat里进行解析的。
+
+queringStr字段
+
+
+CoyoteAdapter#service()方法会解析URL byte 里的 参数。也就是路径上的参数。??吧《不对》
+
+执行请求时：InvocableHandlerMethod#invokeForRequest时，会执行参数的解析
+Object[] args = getMethodArgumentValues(request, mavContainer, providedArgs);
+
+
+
+
+1.反射获取方法上的所有参数。
+2.循环遍历参数，然后使用HandlerMethodArgumentResolverComposite 组合参数解析器，解析每个参数。
+3.HandlerMethodArgumentResolverComposite  解析参数后复制给当前参数。
+args[i] = this.argumentResolvers.resolveArgument(arameter, mavContainer, request, this.dataBinderFactory);
+(其中包括把当前的参数解析器缓存起来)
+参数解析混合器用于获取所有的参数解析器。
+
+Body中的在springMVC中解析
+
+
+疑问点： 
+1.URL参数的解析是在CoyoteAdapter#service()时解析的吗？ 那么Tomcat级别的解析只是拿到了完整URI
+实在解析URI的时候，将参数bytes设置到
+request.queryString().setBytes(byteBuffer.array(), parsingRequestLineQPos + 1,
+                        end - parsingRequestLineQPos - 1);
+设置到request里去。注意这时候仅仅是设置了byte字节。没有解析出来呢。
+
+在我们第一次获取参数时，触发byte转码操作。
+2.Body里的参数是在什么时候解析的？
+
+HiddenHttpMethodFilter 会拦截请求并进行参数的读取？？不对 。他只是调用了request.getParameter(this.methodParam);
+也就说第一次触发request.getParameter(this.methodParam);的位置才是解析body的时机。
+
+至于HiddenHttpMethodFilter是干嘛用的。 可以再开一篇解析。
+
+这也是为啥你参数过多。都进不了方法体。因为在此处就进行了body参数的解析
+
+
+重点就落在了
+org.apache.catalina.connector.Request#parseParameters()
+org.apache.catalina.connector.Request 实现了HttpServletRequest 。也就是我们常说的HttpServletRequest 了
+
+这里要特别主要的是contentType 的解析。
+```java
+ if ("multipart/form-data".equals(contentType)) {
+                parseParts(false);
+                success = true;
+                return;
+            }
+
+            if( !getConnector().isParseBodyMethod(getMethod()) ) {
+                success = true;
+                return;
+            }
+
+            if (!("application/x-www-form-urlencoded".equals(contentType))) {
+                success = true;
+                return;
+            }
+```
+
+
+再下一个问题就是 路径的参数是如何解析的呢？
+
+
+createFilterChain
+
+路径上的参数竟然在 （RequestFacade）request.getAttribute(name)
+
+

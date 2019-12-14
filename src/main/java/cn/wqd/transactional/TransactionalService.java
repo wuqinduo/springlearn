@@ -20,18 +20,13 @@ public class TransactionalService {
     @Autowired
     UserDao userDao;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public String save(){
         System.out.println("被事务方法");
         User user = new User("被事务方法",1);
-        //输出JDK动态代理产生的类
-        System.getProperties().put("sun.misc.ProxyGenerator.saveGeneratedFiles","true");
-        //输出CGLIB动态代理产生的类
-        System.setProperty(DebuggingClassWriter.DEBUG_LOCATION_PROPERTY, "./tran");
         Map<Object, Object> map = TransactionSynchronizationManager.getResourceMap();
         System.out.println(userDao.getClass().getName());//
         userDao.save(user);
-
         return "save";
     }
 
