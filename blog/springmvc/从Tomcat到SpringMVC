@@ -1,0 +1,159 @@
+> 作为过渡篇，本文以Tomcat服务器为例，讲讲请求是如何从Tomcat来到SpringMVC的（Springboot环境下``）
+
+
+SpringMVC的核心是.DispatcherServlet. 而DispatcherServlet的本质还是一个Servlet 。
+
+### 请求从Tomcat到SpringMVC
+
+请求通过Socket 开启应用之旅，在[Tomcat请求链]()中讲过，请求来到Tomcat的最后一个valve,StandardWrapperValve时。执行其invoke方法
+
+```java
+final class StandardWrapperValve
+    extends ValveBase {
+    public final void invoke(Request request, Response response)
+        throws IOException, ServletException {
+        // 1.Allocate a servlet instance to process this request
+        //分配一个servet 去处理请求
+        servlet = wrapper.allocate();
+        // 2.Create the filter chain for this request 
+        //封装servlet为当前请求创建一个过滤器链
+        ApplicationFilterChain filterChain =
+                        ApplicationFilterFactory.createFilterChain(request, wrapper, servlet);
+        //3.执行过滤器链的doFilter方法，（链式执行各种Filter ，末端执行servlet's service() method）
+        filterChain.doFilter(request.getRequest(),
+                                            response.getResponse());
+        }
+}
+```
+来到
+```java
+public final class ApplicationFilterChain implements FilterChain {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
+        internalDoFilter(request,response);//调用内部internalDoFilter方法
+            }
+     private void internalDoFilter(ServletRequest request,
+                                      ServletResponse response)
+            throws IOException, ServletException {
+             // Call the next filter if there is one
+             // 4.链式调用每个Filter的doFilter方法
+             if (pos < n) {
+                  filter.doFilter(request, response, this);
+             }
+             //5.调用servlet的service方法
+             servlet.service(request, response);
+            }
+}
+```
+DispatcherServlet 的继承图来看一下。
+[继承图]
+
+ApplicationFilterChain中 servlet.service(request, response);传递的参数是(ServletRequest request, ServletResponse response)
+```java
+public abstract class HttpServlet extends GenericServlet {
+ //6.执行HttpServlet.service()方法，做req,res 的强制转换
+ public void service(ServletRequest req, ServletResponse res){
+    HttpServletRequest  request;
+    HttpServletResponse response;
+    try {
+        //转为 HttpServletRequest，HttpServletResponse
+         request = (HttpServletRequest) req;
+         response = (HttpServletResponse) res;
+    } catch (ClassCastException e) {
+                throw new ServletException("non-HTTP request or response");
+    }
+    service(request, response);
+    }
+ //8.执行HttpServlet.service此时的参数已经是HttpServletRequest，HttpServletResponse
+ //并根据请求方法类型。调用不同的处理方法
+ protected void service(HttpServletRequest req, HttpServletResponse resp)
+         throws ServletException, IOException {
+      if (method.equals(METHOD_GET)) {
+        doGet(req, resp);   
+      }
+    }
+ }
+public abstract class FrameworkServlet extends HttpServletBean implements ApplicationContextAware {
+ //7.兼容PATCH方法，非PATCH方法最终还是交给HttpServlet.service()
+ protected void service(HttpServletRequest request, HttpServletResponse response)
+ 			throws ServletException, IOException {
+ 
+ 		HttpMethod httpMethod = HttpMethod.resolve(request.getMethod());
+ 		if (httpMethod == HttpMethod.PATCH || httpMethod == null) {
+ 			processRequest(request, response);
+ 		}
+ 		else {
+ 			super.service(request, response);
+ 		}
+ }
+//9.get代理方法，转到processRequset去处理
+ protected final void doGet(HttpServletRequest request, HttpServletResponse response)
+ 			throws ServletException, IOException {
+ 
+ 		processRequest(request, response);
+ 	}
+//10.模板方法，请求的处理交给子类的doService方法去处理
+ protected final void processRequest(HttpServletRequest request, HttpServletResponse response)
+ 			throws ServletException, IOException {
+        doService(request, response);
+ 	}
+}
+
+//最终来到了DispatcherServlet
+public class DispatcherServlet extends FrameworkServlet {
+    //11.做请求分发前的准备工作，主要是设置一些请求的相关属性
+    protected void doService(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        doDispatch(request, response);
+    }
+    //12 开启请求的分发。
+    protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        //开启DispatcherServlet的分发功能
+    }
+}
+```
+
+
+
+最终到了DispatcherServlet的doPath方法了。 下面看工作原理。
+
+
+### DispatcherServlet的初始化
+
+还是从servlet开始。第一次使用时，init
+
+非单线程模式，用的都是一个servlet
+
+> 小技巧：通过看日志来看启动原理很重要啊----------日志日志日志
+
+### DispatcherServlet的工作原理
+
+
+
+### springboot里的web上下文的启动
+在Engine启动完成后，去启动器其子容器Context。
+```java
+ for (int i = 0; i < children.length; i++) {
+            results.add(startStopExecutor.submit(new StartChild(children[i])));
+        }
+ 启动多个线程去启动上线文。
+```
+上下文的启动：
+```java
+startInternal()
+// Call ServletContainerInitializers
+for (Map.Entry<ServletContainerInitializer, Set<Class<?>>> entry :
+                initializers.entrySet()) {
+                try {
+                    entry.getKey().onStartup(entry.getValue(),
+                            getServletContext());
+                } catch (ServletException e) {
+                    log.error(sm.getString("standardContext.sciFail"), e);
+                    ok = false;
+                    break;
+                }
+}
+
+springboot有一个TomcatStart 实现了ServletContainerInitializer接口
+
+```
