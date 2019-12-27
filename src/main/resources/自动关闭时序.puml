@@ -1,0 +1,19 @@
+@startuml
+actor user
+user->sqlSessionManager:insert
+activate sqlSessionManager
+activate sqlSessionProxy
+sqlSessionManager -> sqlSessionProxy: insert
+
+activate SqlSessionInterceptor
+
+sqlSessionProxy ->SqlSessionInterceptor:invoke
+
+activate DefaultSqlSession
+
+SqlSessionInterceptor ->DefaultSqlSession:insert
+SqlSessionInterceptor->DefaultSqlSession:commit
+SqlSessionInterceptor->DefaultSqlSession:close
+
+
+@enduml

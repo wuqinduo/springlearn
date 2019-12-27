@@ -1,0 +1,35 @@
+Connection：
+同一个上下文。用于执行SQL操作。
+
+默认情况下，一个SQL动作执行完成。提交了。 同一个上下文多个动作之间想保持关联关系。
+
+connection一次SQL执行就是一个事务。
+
+怎么办？
+设置为非自动提交
+
+connection执行了多个动作后，执行Commit 动作。那么这几个动作就有关系了。
+
+Transaction ： 
+
+为了描述这种同时执行，或者同时失败的关系。Transaction 诞生。
+
+
+session 
+
+https://blog.csdn.net/AiMaiShanHuHai/article/details/102984764
+https://blog.csdn.net/weixin_34128501/article/details/92259990
+https://blog.csdn.net/T_P_F/article/details/76600076
+https://blog.csdn.net/qq_20545159/article/details/43701107
+https://mp.weixin.qq.com/s/ahLd_RdG20gxw2jvft3O_A 设计模式的多问
+
+系列
+https://blog.csdn.net/u013076044/category_9288732.html
+https://blog.csdn.net/u010349169/category_9263284.html
+https://blog.csdn.net/huanshirenjian/category_8916654.html
+https://my.oschina.net/xiaoqiyiye?tab=newest&catalogId=5742388
+
+mybatis日志很精彩
+
+https://www.cnblogs.com/dw-haung/p/9942810.html
+https://blog.csdn.net/huanshirenjian/article/details/89839105
