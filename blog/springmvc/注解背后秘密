@@ -1,0 +1,281 @@
+
+
+不知写了多少接口，但@RequestMapping注解背后的原理你是否知道呢？
+
+### 回顾
+
+接口的定义本质就是在定义一个handler.
+
+@RequestMapping 做我们最常用的定义Handler,一个Method就是一个handler。
+
+
+### 注册handler
+在Spring为RequestMappingHandlerMapping createBean过程中会调用其afterPropertiesSet()方法，一切就从这里开始了。
+```java
+public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMapping
+		implements MatchableHandlerMapping, EmbeddedValueResolverAware {
+    
+public void afterPropertiesSet() {
+		this.config = new RequestMappingInfo.BuilderConfiguration();
+		this.config.setUrlPathHelper(getUrlPathHelper());
+		this.config.setPathMatcher(getPathMatcher());
+		this.config.setSuffixPatternMatch(this.useSuffixPatternMatch);
+		this.config.setTrailingSlashMatch(this.useTrailingSlashMatch);
+		this.config.setRegisteredSuffixPatternMatch(this.useRegisteredSuffixPatternMatch);
+		this.config.setContentNegotiationManager(getContentNegotiationManager());
+
+		super.afterPropertiesSet();
+	}
+}
+```
+主要做了Builder的配置操作：
+* UrlPathHelper:帮助Spring MVC处理URL相关的各种难题
+* PathMatcher: 路径匹配器
+
+
+```java
+public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMapping implements InitializingBean {
+   public void afterPropertiesSet() {
+   		initHandlerMethods();
+   	}
+   protected void initHandlerMethods() {
+   		if (logger.isDebugEnabled()) {
+   			logger.debug("Looking for request mappings in application context: " + getApplicationContext());
+   		}
+   		//获取所有bean
+   		String[] beanNames = (this.detectHandlerMethodsInAncestorContexts ?
+   				BeanFactoryUtils.beanNamesForTypeIncludingAncestors(getApplicationContext(), Object.class) :
+   				getApplicationContext().getBeanNamesForType(Object.class));
+        //遍历判断
+   		for (String beanName : beanNames) {
+   			if (!beanName.startsWith(SCOPED_TARGET_NAME_PREFIX)) {
+   				Class<?> beanType = null;
+   				try {
+   					beanType = getApplicationContext().getType(beanName);
+   				}
+   				catch (Throwable ex) {
+   					if (logger.isDebugEnabled()) {
+   						logger.debug("Could not resolve target class for bean with name '" + beanName + "'", ex);
+   					}
+   				}
+   				// 如果是handler, 
+   				if (beanType != null && isHandler(beanType)) {
+   				    //识别出Hadnler中的HandlerMethod
+   					detectHandlerMethods(beanName);
+   				}
+   			}
+   		}
+   		handlerMethodsInitialized(getHandlerMethods());
+   	}
+}
+```
+这里的逻辑还是比较清晰的。遍历BeanFactory仓库中Bean，挨个检查是否是Handler，如果是Handler就去Handler查找HandlerMethod
+
+一个Bean会经历两个重点方法，isHandler方法与detectHandlerMethods方法
+#### isHandler
+
+判断当前Bean是否是一个handler,抽象方法，由子类决定什么才是一个Handler
+
+子类RequestMappingHandlerMapping，有实现
+```java
+public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMapping
+		implements MatchableHandlerMapping, EmbeddedValueResolverAware {
+protected boolean isHandler(Class<?> beanType) {
+		return (AnnotatedElementUtils.hasAnnotation(beanType, Controller.class) ||
+				AnnotatedElementUtils.hasAnnotation(beanType, RequestMapping.class));
+	}
+}
+```
+*类上有Controller注解或者RequestMapping 此处就看做是一个Handler*
+
+
+#### detectHandlerMethods
+
+判定为Bean是一个handler 之后，下面就是把类中能处理请求的方法找到，登记在册。
+
+两个动作：找到，登记
+
+```java
+public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMapping implements InitializingBean {
+    protected void detectHandlerMethods(final Object handler) {
+    		Class<?> handlerType = (handler instanceof String ?
+    				getApplicationContext().getType((String) handler) : handler.getClass());
+    		final Class<?> userType = ClassUtils.getUserClass(handlerType);
+            //找：方法搜索器，搜索当前bean继承体系上的所有方法中，符合我们需要的method
+    		Map<Method, T> methods = MethodIntrospector.selectMethods(userType,
+    				new MethodIntrospector.MetadataLookup<T>() {
+    					@Override
+    					public T inspect(Method method) {
+    						try {
+    							return getMappingForMethod(method, userType);
+    						}
+    						catch (Throwable ex) {
+    							throw new IllegalStateException("Invalid mapping on handler class [" +
+    									userType.getName() + "]: " + method, ex);
+    						}
+    					}
+    				});
+    
+    		if (logger.isDebugEnabled()) {
+    			logger.debug(methods.size() + " request handler methods found on " + userType + ": " + methods);
+    		}
+    		//注册，
+    		for (Map.Entry<Method, T> entry : methods.entrySet()) {
+    			Method invocableMethod = AopUtils.selectInvocableMethod(entry.getKey(), userType);
+    			T mapping = entry.getValue();
+    			registerHandlerMethod(handler, invocableMethod, mapping);
+    		}
+}}
+```
+
+找：
+MethodIntrospector 能够搜索到当前类 所有关联的方法（包括，接口，父类，同时还处理参数化方法以及接口和基于类代理的常见场景）中，我们需要的方法。
+
+MethodIntrospector.MetadataLookup 用于定义条件，匹配这些方法中符合我们要求的方法。
+
+
+getMappingForMethod就是这个条件。getMappingForMethod是一个抽象方法，在中定义
+
+```java
+public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMapping
+		implements MatchableHandlerMapping, EmbeddedValueResolverAware {
+    //获取RequestMappingInfo
+    protected RequestMappingInfo getMappingForMethod(Method method, Class<?> handlerType) {
+        //查找method是是否有RequestMappingInfo
+		RequestMappingInfo info = createRequestMappingInfo(method);
+		//如果方法上有
+		if (info != null) {
+		    //获取类上的RequestMappingInfo
+			RequestMappingInfo typeInfo = createRequestMappingInfo(handlerType);
+			if (typeInfo != null) {
+			    //合并方法与类上的注解信息。 这也是为啥。方法的访问路径是类路径+方法路径。
+				info = typeInfo.combine(info);
+			}
+		}
+		return info;
+	}    
+	// 根据方法或者类上的注解信息,创建RequestMappingInfo
+    private RequestMappingInfo createRequestMappingInfo(AnnotatedElement element) {
+        //获取当前element上的RequestMapping 注解元信息 （包括直接@RequestMapping注解，或者间接RequestMapping 如@GetMapping）
+        // 将查询出的多个annotationType类型注解属性合并到查询的第一个注解中
+		RequestMapping requestMapping = AnnotatedElementUtils.findMergedAnnotation(element, RequestMapping.class);
+		
+		//获取自定义的条件。
+		RequestCondition<?> condition = (element instanceof Class ?
+				getCustomTypeCondition((Class<?>) element) : getCustomMethodCondition((Method) element));
+		//根据注解信息，与自定义条件。创建一个RequestMappingInfo
+		return (requestMapping != null ? createRequestMappingInfo(requestMapping, condition) : null);
+	}
+	
+	//创建RequestMappingInfo
+	protected RequestMappingInfo createRequestMappingInfo(
+    			RequestMapping requestMapping, RequestCondition<?> customCondition) {
+    
+    		return RequestMappingInfo
+    		        //解析请求中注解对应的
+    				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))
+    				.methods(requestMapping.method())
+    				.params(requestMapping.params())
+    				.headers(requestMapping.headers())
+    				.consumes(requestMapping.consumes())
+    				.produces(requestMapping.produces())
+    				.mappingName(requestMapping.name())
+    				.customCondition(customCondition)
+    				.options(this.config)
+    				.build();
+    	}
+}
+```
+
+简单来说：找的过程，就是解析方法上的@RequestMapping注解与类上的@RequestMapping注解，合同两个注解信息。
+
+解析类路径+方法路径url  与  方法直接 映射关系。
+
+找到的结果就是一个
+
+得到了一个Map<Method, T> methods ： 以方法为K ,以RequestMappingInfo 为Value
+
+> 类上只用@Controller ，方法里有@RequestMapping 这准组合是不行的哦。
+
+
+登记：
+
+```java
+public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMapping implements InitializingBean {
+    protected void detectHandlerMethods(final Object handler) {
+    		Class<?> handlerType = (handler instanceof String ?
+    				getApplicationContext().getType((String) handler) : handler.getClass());
+    		final Class<?> userType = ClassUtils.getUserClass(handlerType);
+            //找：方法搜索器，搜索当前bean继承体系上的所有方法中，符合我们需要的method
+    		//....
+    		//注册，
+    		for (Map.Entry<Method, T> entry : methods.entrySet()) {
+    		    //找到可调用的方法
+    			Method invocableMethod = AopUtils.selectInvocableMethod(entry.getKey(), userType);
+    			T mapping = entry.getValue();
+    			//注册
+    			registerHandlerMethod(handler, invocableMethod, mapping);
+    		}}
+    protected void registerHandlerMethod(Object handler, Method method, T mapping) {
+    		this.mappingRegistry.register(mapping, handler, method);
+    	}
+    	
+    class MappingRegistry {
+        //三个参数直接信息， handler类，hangler方法
+        public void register(T mapping, Object handler, Method method) {
+        			this.readWriteLock.writeLock().lock();//线程安全
+        			try {
+        			    //创建一个HandlerMethod
+        				HandlerMethod handlerMethod = createHandlerMethod(handler, method);
+        				//检查路径是否被定义过，确保一个路径只能找到一个method（路径定义重复的错误就是在这里抛出的）
+        				assertUniqueMethodMapping(handlerMethod, mapping);
+                        
+        				//日志，启动时可以看到
+        				if (logger.isInfoEnabled()) {
+        					logger.info("Mapped \"" + mapping + "\" onto " + handlerMethod);
+        				}
+        				
+        				// mappingLookup： 缓存Mapping和handlerMethod的关系  
+        				this.mappingLookup.put(mapping, handlerMethod);
+                        
+        				//获取注解里的路径信息。
+        				List<String> directUrls = getDirectUrls(mapping);
+        				//缓存路径与mapping的关系
+        				for (String url : directUrls) {
+        					this.urlLookup.add(url, mapping);
+        				}
+                        
+        				// 保存name和handlerMethod的关系  同样也是一对多
+        				String name = null;
+        				if (getNamingStrategy() != null) {
+        					name = getNamingStrategy().getName(handlerMethod, mapping);
+        					addMappingName(name, handlerMethod);
+        				}
+        
+        				//初始化跨域配置，并缓存handlerMethod与跨域配置的
+        				CorsConfiguration corsConfig = initCorsConfiguration(handler, method, mapping);
+        				if (corsConfig != null) {
+        					this.corsLookup.put(handlerMethod, corsConfig);
+        				}
+        
+                        // 注册mapping和MappingRegistration的关系				
+        				this.registry.put(mapping, new MappingRegistration<T>(mapping, handlerMethod, directUrls, name));
+        			}
+        			finally {
+        				this.readWriteLock.writeLock().unlock();
+        			}
+        		}
+    }
+}
+```
+
+总结注册过程：
+        根据handler,method创建一个HandlerMethod实例
+        缓存mapping和handlerMethod的关系
+        缓存路径url与mapping的关系
+        缓存name和handlerMethod的关系
+
+
+### 获取handler
+
+效率啊大哥

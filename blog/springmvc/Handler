@@ -1,0 +1,112 @@
+### Handler与HandlerMapping关系
+
+Handler可以理解为具体干活的，也就是我们的业务处理逻辑。
+
+Handler最终是要通过url 来访问到，这样URL与Handler之间就有一个映射关系了。
+
+HandlerMapping的作用就是维护这种映射，对Handler登记在册，对外提供根据URL查询Handler的服务。
+
+
+
+
+### Handler分类
+
+SpringMVC为我们提供了多种定义Handler的方式。
+
+#### 实现Controller接口
+org.springframework.web.servlet.mvc.Controller 接口是SpringMvc提供的控制器接口，实现此接口的类，可以看做是一个Handler。
+
+此接口只有一个方法
+```java
+public interface Controller {
+    ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws Exception;
+}
+```
+实现了此接口的Handler特点就是： 只有一个handleRequest方法接受请求，也就是说大部分情况下，一个类是一个handler，一个类只能映射一个URL。
+
+
+针对一些场景，SpringMVC提供了几个Controller的默认实现:
+
+##### AbstractController
+抽象实现，
+
+##### ServletForwardingController
+与Servlet有关的控制器，作用：将到达ServletForwardingController的请求转发到当前应用中的一个Servlet。
+
+##### ServletWrappingController
+与Servlet有关的控制器，作用:将当前应用中的某个 Servlet直接包装为一个Controller，所有到达ServletWrappingController的请求最终交给其包装的那个servlet进行处理
+
+##### ParameterizableViewController
+用于直接界面跳转，省去自己实现Controller。控制器根据配置的参数来跳转界面。
+
+
+##### UrlFilenameViewController
+用于直接界面跳转，省去自己实现Controller。控制器根据请求的URL直接解析出视图名。
+
+##### MultiActionController
+一个 Controller 可以写多个方法，分别对应不同的请求，使同一业务的方法可以放在一起了。在使用时让自己的 Controller 类继承 MultiActionController 类。（注意，虽然处理了多个请求但还是只有一个handleRequest接受的请求。此类类似分发功能）
+
+
+#### 实现HttpRequestHandler接口
+
+此接口和Controller主要区别就是在返回值不同。
+
+##### DefaultServletHttpRequestHandler
+与静态资源有关的控制器。 静态资源的请求也web开发中不可或缺的请求。通常web容器都有处理静态资源请求的能力。我们以Tomcat为例，Tomcat中所有的资源都是Servlet实现的，静态资源的请求交类DefaultServlet去处理。
+
+DefaultServletHttpRequestHandler的作用其实就是根据当前容器，将静态资源请求转给容器进行处理。
+
+##### ResourceHttpRequestHandler
+与静态资源有关的控制器。DefaultServletHttpRequestHandler把静态资源请求交给容器处理。ResourceHttpRequestHandler是把静态资源请求交给SpringMVC自己处理。
+
+我们通常用注解的形式配置静态资源的处理
+```java
+@Configuration
+public class WebMvcStaticResourcesConfiguration extends WebMvcConfigurerAdapter {
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        if (!registry.hasMappingForPattern("/static/**")) {
+            registry.addResourceHandler("/static/**").addResourceLocations("classpath:/static/");
+        }
+        super.addResourceHandlers(registry);
+    }
+}
+```
+此时我们心里应该清楚：这是交给SpringMVC自己处理静态资源请求
+
+##### HttpInvokerServiceExporter
+##### HessianServiceExporter
+##### BurlapServiceExporter
+https://blog.51cto.com/stevex/1353236?utm_source=hacpai.com
+https://www.open-open.com/lib/view/open1408957290478.html?utm_source=hacpai.com
+https://hacpai.com/article/1460378961666
+https://www.cnblogs.com/tengyunhao/p/7658952.html
+#### 实现Servlet
+
+
+
+#### 使用@RequestMapping注解
+
+### HandlerMapping
+ 
+ 定义了完了Handler，我们找到他们啊。此时HandlerMapping上场。HandlerMapping 会把他们，按照url 与Handler的映射关系登记在册。我们就可以通过url找到对应的Handler了。
+
+ HandlerMapping总的来说分为两大类
+ 
+ 一种是处理url直接与类对应的这种handler
+ 一种是处理url与HandlerMethod对应的这种handler
+ 
+ ### AbstractUrlHandlerMapping
+ 处理url直接与一类handler的映射。（也就是一个类中只有一个接受请求的方法）
+ 
+ #### BeanNameUrlHandlerMapping
+ 
+ #### SimpleUrlHandlerMapping 
+
+ ### AbstractUrlHandlerMapping
+ 
+ #### RequestMappingHandlerMapping
+总结
+
+- 
