@@ -1,0 +1,112 @@
+#### 既生瑜何生亮
+
+通过前几篇文章，我们知道根据url可以从HandlerMapping中，获取到我们需要的handler了。有了handler不就可以处理程序了吗。
+
+为啥有了HandlerMapping ，还需要HandlerAdapter？
+
+来看看DispatcherServlet#doDispatch(request, response) 与 handler之间的问题
+
+1. Servlet入参就2个，但是handler 里各种各样的入参。尤其是我们常用的@RequestMapping这种方式定义的，参数有个根据开发人员心情定
+2. handler返回类型多种多样，返回各种格式的数据类型。
+3. 4种handler定义方式，如何选择？
+
+这种固定的Servlet规范与灵活的Handler之间就产生了冲突。
+
+于是乎伟大的设计模式上场，适配器模式的存在就是解决这种不兼容双方的。HandlerAdapter就是这个适配器
+
+1.入参，返回值的复杂处理交给适配器去处理
+2.Handler的选择问题，交给适配器去操心。
+  
+  > 这也为我们使用适配器模式提供了好的范本。
+ 
+```java
+public interface HandlerAdapter {
+
+	boolean supports(Object handler);
+
+	ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception;
+
+	long getLastModified(HttpServletRequest request, Object handler);
+}
+
+```
+
+HandlerAdapter中定义了三个方法：
+* supports： 用于判断当前适配器是否支持是否能够支持当前的handler的适配。也就是解决了Handler的选择问题
+* handle() ：真正调用Handler，适配的核心。帮我们解决参数，返回值等一些列周边问题
+* getLastModified()：获取当前请求的最后更改时间，主要用于供给浏览器判断当前请求是否修改过，从而判断是否可以直接使用之前缓存的结果
+
+
+#### 有哪些HandlerAdapter
+##### HttpRequestHandlerAdapter
+```java
+public class HttpRequestHandlerAdapter implements HandlerAdapter {
+
+	@Override
+	public boolean supports(Object handler) {
+		return (handler instanceof HttpRequestHandler);
+	}
+
+	@Override
+	public ModelAndView handle(HttpServletRequest request, HttpServletResponse response, Object handler)
+			throws Exception {
+        
+		((HttpRequestHandler) handler).handleRequest(request, response);
+		return null;
+	}
+
+	@Override
+	public long getLastModified(HttpServletRequest request, Object handler) {
+		if (handler instanceof LastModified) {
+			return ((LastModified) handler).getLastModified(request);
+		}
+		return -1L;
+	}
+
+}
+```
+看HttpRequestHandlerAdapter.supports 判断其是否是HttpRequestHandler接口类型，也就说HttpRequestHandlerAdapter适配org.springframework.web.HttpRequestHandler这种Handler
+##### SimpleControllerHandlerAdapter
+从supports方法可以看出适配的是实现Controller接口这种handler
+```java
+public class SimpleControllerHandlerAdapter implements HandlerAdapter {
+
+	@Override
+	public boolean supports(Object handler) {
+		return (handler instanceof Controller);
+	}
+}
+```
+##### SimpleServletHandlerAdapter
+从supports方法可以看出适配的是Servlet这种handler
+```java
+public class SimpleServletHandlerAdapter implements HandlerAdapter {
+
+	@Override
+	public boolean supports(Object handler) {
+		return (handler instanceof Servlet);
+	}
+}
+```
+
+##### RequestMappingHandlerAdapter
+
+>最重要的HandlerAdapter，之所以说重要，因为他是最复杂，也是SpringMVC的核心功能之一。
+
+
+看上文的其他三种handler适配器。都很简单。SpringMVC适配器的重头戏其实就在此
+
+
+
+
+##### 实践
+
+学了dispatchservlet后，我想到了自己业务中的合同代码？以及对if else的 新方案。
+
+
+
+不同类型合同，写不同类型的handler ，然后封装对应合同handler的适配器，完成对不同合同的不同调用。在合同接口处，我只需要执行适配器的handler 。这样不就是解耦了。 
+
+拦截器不就是我们日常用的接口中的各种校验吗。这么看来。这才是我们做接口模板啊
+
+https://blog.csdn.net/f641385712/article/details/102726381

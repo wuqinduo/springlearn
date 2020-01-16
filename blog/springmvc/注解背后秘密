@@ -269,13 +269,45 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 }
 ```
 
+
+
 总结注册过程：
         根据handler,method创建一个HandlerMethod实例
         缓存mapping和handlerMethod的关系
         缓存路径url与mapping的关系
         缓存name和handlerMethod的关系
+        根据mapping,handlerMethod,urls,name创建一个MappingRegistration相关实例
+        缓存mapping和MappingRegistration的关系
 
-
+spring初始化完成后，我们定义的相关接口，也就被登记在册了。
 ### 获取handler
+
+```java
+public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport implements HandlerMapping, Ordered {
+   public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+   		Object handler = getHandlerInternal(request);
+   		if (handler == null) {
+   			handler = getDefaultHandler();
+   		}
+   		if (handler == null) {
+   			return null;
+   		}
+   		// Bean name or resolved handler?
+   		if (handler instanceof String) {
+   			String handlerName = (String) handler;
+   			handler = getApplicationContext().getBean(handlerName);
+   		}
+   
+   		HandlerExecutionChain executionChain = getHandlerExecutionChain(handler, request);
+   		if (CorsUtils.isCorsRequest(request)) {
+   			CorsConfiguration globalConfig = this.globalCorsConfigSource.getCorsConfiguration(request);
+   			CorsConfiguration handlerConfig = getCorsConfiguration(handler, request);
+   			CorsConfiguration config = (globalConfig != null ? globalConfig.combine(handlerConfig) : handlerConfig);
+   			executionChain = getCorsHandlerExecutionChain(request, executionChain, config);
+   		}
+   		return executionChain;
+   	} 
+}
+```
 
 效率啊大哥

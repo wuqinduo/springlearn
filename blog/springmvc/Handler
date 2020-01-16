@@ -13,7 +13,7 @@ HandlerMapping的作用就是维护这种映射，对Handler登记在册，对�
 
 SpringMVC为我们提供了多种定义Handler的方式。
 
-#### 实现Controller接口
+#### 1.实现Controller接口
 org.springframework.web.servlet.mvc.Controller 接口是SpringMvc提供的控制器接口，实现此接口的类，可以看做是一个Handler。
 
 此接口只有一个方法
@@ -27,14 +27,16 @@ public interface Controller {
 
 针对一些场景，SpringMVC提供了几个Controller的默认实现:
 
+##### 与Servlet相关
+
 ##### AbstractController
 抽象实现，
 
 ##### ServletForwardingController
-与Servlet有关的控制器，作用：将到达ServletForwardingController的请求转发到当前应用中的一个Servlet。
+与Servlet有关的控制器，作用：将到达ServletForwardingController的请求*转发*到当前应用中的一个Servlet。
 
 ##### ServletWrappingController
-与Servlet有关的控制器，作用:将当前应用中的某个 Servlet直接包装为一个Controller，所有到达ServletWrappingController的请求最终交给其包装的那个servlet进行处理
+与Servlet有关的控制器，作用:将当前应用中的某个 Servlet直接*包装*为一个Controller，所有到达ServletWrappingController的请求最终交给其包装的那个servlet进行处理
 
 ##### ParameterizableViewController
 用于直接界面跳转，省去自己实现Controller。控制器根据配置的参数来跳转界面。
@@ -47,14 +49,27 @@ public interface Controller {
 一个 Controller 可以写多个方法，分别对应不同的请求，使同一业务的方法可以放在一起了。在使用时让自己的 Controller 类继承 MultiActionController 类。（注意，虽然处理了多个请求但还是只有一个handleRequest接受的请求。此类类似分发功能）
 
 
-#### 实现HttpRequestHandler接口
+#### 2.实现HttpRequestHandler接口
 
-此接口和Controller主要区别就是在返回值不同。
+此接口与Controller类似，也是只有一个handlerRequest方法.
+```java
+public interface HttpRequestHandler {
 
+	void handleRequest(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException;
+
+}
+```
+
+但是handleRequest 并没有返回一个视图。从这点来看
+> HttpRequestHandler是专门处理Http请求（非视图请求）,并生成对应的响应的处理器。
+
+
+针对一些场景，SpringMVC提供了几个HttpRequestHandler的默认实现:
 ##### DefaultServletHttpRequestHandler
 与静态资源有关的控制器。 静态资源的请求也web开发中不可或缺的请求。通常web容器都有处理静态资源请求的能力。我们以Tomcat为例，Tomcat中所有的资源都是Servlet实现的，静态资源的请求交类DefaultServlet去处理。
 
-DefaultServletHttpRequestHandler的作用其实就是根据当前容器，将静态资源请求转给容器进行处理。
+DefaultServletHttpRequestHandler的作用其实就是根据当前容器，将静态资源请求转给容器自己去处理静态资源。例如：Tomcat容器下，DefaultServletHttpRequestHandler将静态资源请求交给DefaultServlet去处理
 
 ##### ResourceHttpRequestHandler
 与静态资源有关的控制器。DefaultServletHttpRequestHandler把静态资源请求交给容器处理。ResourceHttpRequestHandler是把静态资源请求交给SpringMVC自己处理。
@@ -76,6 +91,7 @@ public class WebMvcStaticResourcesConfiguration extends WebMvcConfigurerAdapter 
 此时我们心里应该清楚：这是交给SpringMVC自己处理静态资源请求
 
 ##### HttpInvokerServiceExporter
+
 ##### HessianServiceExporter
 ##### BurlapServiceExporter
 https://blog.51cto.com/stevex/1353236?utm_source=hacpai.com

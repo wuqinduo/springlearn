@@ -1,0 +1,217 @@
+@[TOC]
+
+### 一、Handler与HandlerMapping关系
+
+Handler可以理解为具体干活的，也就是我们的业务处理逻辑。
+
+Handler最终是要通过url 来访问到，这样URL与Handler之间就有一个映射关系了。
+
+HandlerMapping的作用就是维护这种映射，对Handler登记在册，对外提供根据URL查询Handler的服务。
+
+
+
+
+### 二、Handler分类
+
+SpringMVC为我们提供了多种定义Handler的方式。
+
+#### 1.实现Controller接口
+org.springframework.web.servlet.mvc.Controller 接口是SpringMvc提供的控制器接口，实现此接口的类，可以看做是一个Handler。
+
+此接口只有一个方法
+```java
+public interface Controller {
+    ModelAndView handleRequest(HttpServletRequest request, HttpServletResponse response) throws Exception;
+}
+```
+实现了此接口的Handler特点就是： 只有一个handleRequest方法接受请求，也就是说大部分情况下，一个类是一个handler，一个类只能映射一个URL。
+
+
+针对一些场景，SpringMVC提供了几个Controller的默认实现:
+
+##### 与Servlet相关
+
+
+* ServletForwardingController
+与Servlet有关的控制器，作用：将到达ServletForwardingController的请求*转发*到当前应用中的一个Servlet。
+
+* ServletWrappingController
+与Servlet有关的控制器，作用:将当前应用中的某个 Servlet直接*包装*为一个Controller，所有到达ServletWrappingController的请求最终交给其包装的那个servlet进行处理
+
+##### 直接跳转页面
+* ParameterizableViewController
+用于直接界面跳转，省去自己实现Controller。控制器根据配置的参数来跳转界面。
+
+
+* UrlFilenameViewController
+用于直接界面跳转，省去自己实现Controller。控制器根据请求的URL直接解析出视图名。
+
+##### MultiActionController
+一个 Controller 可以写多个方法，分别对应不同的请求，使同一业务的方法可以放在一起了。在使用时让自己的 Controller 类继承 MultiActionController 类。（注意，虽然处理了多个请求但还是只有一个handleRequest接受的请求。此类类似分发功能）
+
+
+#### 2.实现HttpRequestHandler接口
+
+此接口与Controller类似，也是只有一个handlerRequest方法.
+```java
+public interface HttpRequestHandler {
+
+	void handleRequest(HttpServletRequest request, HttpServletResponse response)
+			throws ServletException, IOException;
+
+}
+```
+
+但是handleRequest 并没有返回一个视图。从这点来看
+> HttpRequestHandler是专门处理Http请求（非视图请求）,并生成对应的响应的处理器。
+
+
+针对一些场景，SpringMVC提供了几个HttpRequestHandler的默认实现:
+
+##### 静态资源相关
+静态资源的请求也web开发中不可或缺的请求.HttpRequestHandler的两个实现类，针对静态资源进行处理。
+
+* `DefaultServletHttpRequestHandler`
+与静态资源有关的控制器。 。通常web容器都有处理静态资源请求的能力。我们以Tomcat为例，Tomcat中所有的资源都是Servlet实现的，静态资源的请求交类DefaultServlet去处理。
+
+DefaultServletHttpRequestHandler的作用其实就是根据当前容器，将静态资源请求转给容器自己去处理静态资源。例如：Tomcat容器下，DefaultServletHttpRequestHandler将静态资源请求交给DefaultServlet去处理
+
+* `ResourceHttpRequestHandler`
+与静态资源有关的控制器。DefaultServletHttpRequestHandler把静态资源请求交给容器处理。ResourceHttpRequestHandler是把静态资源请求交给SpringMVC自己处理。
+
+我们通常用注解的形式配置静态资源的处理
+```java
+@Configuration
+public class WebMvcStaticResourcesConfiguration extends WebMvcConfigurerAdapter {
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        if (!registry.hasMappingForPattern("/static/**")) {
+            registry.addResourceHandler("/static/**").addResourceLocations("classpath:/static/");
+        }
+        super.addResourceHandlers(registry);
+    }
+}
+```
+此时我们心里应该清楚：这是交给SpringMVC自己处理静态资源请求
+
+##### 远程访问相关。
+针对远程访问的场景，Spring不但自己做了实现，而且还提供了对其他技术的集成支持。
+
+* Spring HTTP Invoker: Spring自己实现，使用HTTP协议，允许穿透防火墙，使用JAVA系列化方式，但仅限于Spring应用之间使用，即调用者与被调用者都必须是使用Spring框架的应用。
+
+* RMI：使用JRMP协议(基于TCP/IP)，不允许穿透防火墙，使用JAVA系列化方式，使用于任何JAVA应用之间相互调用。
+
+* Hessian：使用HTTP协议，允许穿透防火墙，使用自己的系列化方式，支持JAVA、C++、.Net等跨语言使用。
+
+* Burlap: 与Hessian相同，只是Hessian使用二进制传输，而Burlap使用XML格式传输（两个产品均属于caucho公司的开源产品)。
+
+
+SpringMVC提供的几个HttpRequestHandler实现，正是处理这类请求。
+
+* HttpInvokerServiceExporter
+支持 Spring HTTP Invoker 调用器
+* HessianServiceExporter
+hessian服务处理程序
+##### BurlapServiceExporter
+Burlap服务处理程序
+
+> 参考链接：[Spring中HttpInvoker远程方法调用总结](https://www.open-open.com/lib/view/open1408957290478.html?utm_source=hacpai.com)
+[HttpRequestHandler接口](https://hacpai.com/article/1460378961666)
+[Spring HTTP Invoker使用介绍](https://blog.51cto.com/stevex/1353236?utm_source=hacpai.com)
+
+
+#### 3.实现Servlet方式
+
+Servlet是我们使用最早的定义业务逻辑的方式。SpringMVC也提供了对这种实现方式的支持
+```java
+@Controller("/servletController")
+public class ServletController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        System.out.println("this servlet controller");
+    }
+}
+
+```
+
+#### 4.@RequestMapping方式
+
+这种方式是我们现在最熟悉的方式。一个方法就是一个handler， 一类中可以写多个handler。
+```java
+@RestController
+@RequestMapping(value = "/test")
+public class TestController {
+        @RequestMapping(value = "/test")
+        public void getCode()throws  Exception{
+            System.out.println("this RequestMapping");
+        }
+}
+```
+
+对于springMVC提供的定义Handler的这些方式，我们可以灵活的定义我们的业务处理。
+
+### HandlerMapping
+ 
+定义了完了Handler，我们最终的目的还是需要通过url访问到他们进行业务的处理。此时HandlerMapping上场。HandlerMapping 会把他们，按照url 与Handler的映射关系登记在册。我们就可以通过url找到对应的Handler了。
+
+HandlerMapping 接口，只定义了一个方法getHandler。此方法是各种HandlerMapping实现类对外提供获取Handler的核心方法
+```java
+public interface HandlerMapping {
+    HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception;
+}
+```
+
+上文可以看出
+
+一个handler可能是一个方法，也可能是一个 Controller 对象、 HttpRequestHandler 对象或 Servlet 对象。
+
+针对这种情况， HandlerMapping分为两个分支来处理
+ 
+ * AbstractHandlerMethodMapping：一种是处理url直接与类对应的这种handler，
+ * AbstractUrlHandlerMapping一种是处理url与Method对应的这种handler
+ 
+ 它们又统一继承于 AbstractHandlerMapping
+ 
+ AbstractHandlerMapping 是HandlerMapping的抽象实现，使用模板模式定义了获取Handler的算法
+ ```java
+ public abstract class AbstractHandlerMapping extends WebApplicationObjectSupport implements HandlerMapping, Ordered {
+    @Override
+    public final HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+        // 根据请求获取执行程序，具体的获取方式由子类决定，getHandlerInternal() 是抽象方法
+        Object handler = getHandlerInternal(request);
+        if (handler == null) {
+            handler = getDefaultHandler();
+        }
+        if (handler == null) {
+            return null;
+        }
+        // Bean name or resolved handler?
+        if (handler instanceof String) {
+            String handlerName = (String) handler;
+            handler = getApplicationContext().getBean(handlerName);
+        }
+        // 将 Handler 与一堆拦截器包装到 HandlerExecutionChain 对象中
+        return getHandlerExecutionChain(handler, request);
+    }
+ }
+
+```
+
+可以看到在这个方法中又调用了 getHandlerInternal() 方法获取到了 Handler 对象，而 Handler 对象具体内容是由它的子类去定义的
+ 
+ 
+ ### AbstractUrlHandlerMapping
+ 处理url直接与一类handler的映射。（也就是一个类中只有一个接受请求的方法）
+ 
+ #### BeanNameUrlHandlerMapping
+ 
+ #### SimpleUrlHandlerMapping 
+
+ ### AbstractUrlHandlerMapping
+ 
+ #### RequestMappingHandlerMapping
+总结
+
+- 
