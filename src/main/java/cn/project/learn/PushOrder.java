@@ -31,7 +31,10 @@ public class PushOrder {
  *
  *
  * public boolean subStock(){
- *      //扣减语句 update item_stock set stock = stock -#{amount} where item_id =  stock>=#{amount}
+ *      //扣减语句，只有有库存时才会扣减 update item_stock set stock = stock -#{amount} where item_id =  stock>=#{amount}
+ *
+ *      为啥有的要先取回库存数量呢？
+ *
  *      int afterRow = daoMapper.subStock(stock,amount);
  *      if(afterRow>0){
  *          成功
@@ -46,8 +49,13 @@ public class PushOrder {
  *      再扣减库存
  *
  *  考虑的点：
- *      (1)尽量减少行级锁的持锁时间。
+ *      (1)尽量减少行级锁的持锁时间。插入秒杀记录，可能失败，就不用去扣减库存，就类似是否秒杀过的检查
  *      (2)尽量减少网络延迟，网络消耗。例如 lua脚本，存储过程(缺点业务绑定到了数据库)
+ *
+ * 5.安全性考虑：
+ *
+ *      悲观锁：sync
+ *      乐观锁：带版本号更新。
  *
  * }
  */
