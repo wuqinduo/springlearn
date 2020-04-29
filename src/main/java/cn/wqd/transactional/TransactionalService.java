@@ -1,5 +1,8 @@
 package cn.wqd.transactional;
 
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import org.apache.ibatis.session.SqlSessionManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cglib.core.DebuggingClassWriter;
 import org.springframework.stereotype.Service;
@@ -19,6 +22,12 @@ public class TransactionalService {
 
     @Autowired
     UserDao userDao;
+
+    /*public void test(){
+        SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
+        SqlSessionManager sqlSessionManager = SqlSessionManager.newInstance(sqlSessionFactory);
+        UserDao userMapper =sqlSessionManager.getMapper(UserDao.class);
+    }*/
 
     @Transactional
     public String save(){
