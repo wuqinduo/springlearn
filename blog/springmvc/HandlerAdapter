@@ -94,19 +94,26 @@ public class SimpleServletHandlerAdapter implements HandlerAdapter {
 >最重要的HandlerAdapter，之所以说重要，因为他是最复杂，也是SpringMVC的核心功能之一。
 
 
-看上文的其他三种handler适配器。都很简单。SpringMVC适配器的重头戏其实就在此
+看上文的其他三种handler适配器，都很简单。SpringMVC适配器的重头戏其实就在RequestMappingHandlerAdapter中。
+
+我们先来看看其supports方法,其实现在父类`AbstractHandlerMethodAdapter`中
+```java
+public abstract class AbstractHandlerMethodAdapter {
+   public final boolean supports(Object handler) {
+   		return (handler instanceof HandlerMethod && supportsInternal((HandlerMethod) handler));
+   	} 
+}
+public class RequestMappingHandlerAdapter extends AbstractHandlerMethodAdapter{
+   protected boolean supportsInternal(HandlerMethod handlerMethod) {
+   		return true;
+   	} 
+}
+```
+可以看出，支持的是handler 是HandlerMethod类型，
+
+>RequestMappingHandlerAdapter的工作原理也很复杂，单开一篇文章讲讲。
 
 
+##### 总结：
 
-
-##### 实践
-
-学了dispatchservlet后，我想到了自己业务中的合同代码？以及对if else的 新方案。
-
-
-
-不同类型合同，写不同类型的handler ，然后封装对应合同handler的适配器，完成对不同合同的不同调用。在合同接口处，我只需要执行适配器的handler 。这样不就是解耦了。 
-
-拦截器不就是我们日常用的接口中的各种校验吗。这么看来。这才是我们做接口模板啊
-
-https://blog.csdn.net/f641385712/article/details/102726381
+HandlerAdapter适配器把servlet 与 多样性的Handler 完美的联系在一起，把之间的参数匹配，返回值处理解决掉了。

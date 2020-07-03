@@ -39,4 +39,7 @@ public class WebLogAcpect {
         logger.info("RESPONSE : " + ret);
     }
 
+    public void test(){
+        System.out.println("sdfsdf");
+    }
 }

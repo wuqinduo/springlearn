@@ -5,7 +5,6 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
-
 import java.util.List;
 
 /**
@@ -14,14 +13,12 @@ import java.util.List;
 
 @Mapper
 //@Repository
-public interface UserDao {
+public interface UserMapper {
 
     @Insert("insert into user( name, age) " +
             "values(#{user.name}, #{user.age})")
-    void save(@Param("user")User user);
+    void save(@Param("user") User user);
 
-    @Select("select * from user where id in (${ids})")
-    List<User> getByIds(@Param("ids")String ids);
 
     @Select("select * from user where id=#{id}")
     User getById(@Param("id")String id);

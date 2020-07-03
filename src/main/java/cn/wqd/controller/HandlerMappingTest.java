@@ -11,12 +11,14 @@ import javax.servlet.http.HttpServletResponse;
 
 @RequestMapping("/handlerMapping")
 @RestController
+@Controller("/handler")
 public class HandlerMappingTest {
-    @RequestMapping("/test")
-    public void getHandlerMappingTest(HttpServletRequest request, HttpServletResponse response){
-        request.getParameter("name");
+    @RequestMapping("/testhandler")
+    public String getHandlerMappingTest(HttpServletRequest request, HttpServletResponse response){
+        request.getParameter("a");
         System.out.println(request.getParameterValues("name"));
         System.out.println("ssssssssss");
+        return "sdsfsdf";
     }
 
     @PostMapping("/post/{id}/{name}")
