@@ -2,7 +2,7 @@ package cn.jvmlearn;
 
 /**
  * GC 学习第一节
-
+ https://www.cnblogs.com/webor2006/category/1154466.html cexo
  -verbose:gc
  -Xms20M  堆大小初始值
  -Xmx20M  堆最大值
